@@ -1,37 +1,17 @@
 {
-  "name": "Pmail",
-  "version": "0.4",
-  "description": "Easy End-to-end encryption",
-  "background": {
-    "scripts": ["background.js"]
-  },
+  "name": "Gmail.js",
+  "version": "0.1",
+  "description": "Hello World Gmail chrome extension",
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
       "js": ["content.js"]
     }
   ],
-  "icons": {
-    "16" : "icon-16.png",
-    "48" : "icon-48.png",
-    "128" : "icon-128.png"
-  },
   "web_accessible_resources": [
-    "jquery-1.10.2.min.js",
-    //"jquery-3.1.1.min.js",
-    "load.js",
-    "gmail.js",
-    "websocket.js",
-    "main.js",
-    "sjcl.js",
-    "long.js",
-    "wrap.js",
-    "hashes.js",
-    "kbpgp-2.0.8.js",
-    "openpgp.js"
+    "utils/jquery-1.10.2.min.js",
+    "utils/gmail.js",
+    "main.js"
   ],
-  "permissions": [
-    "background"
-  ],
-  "manifest_version": 6
+  "manifest_version": 2
 }
