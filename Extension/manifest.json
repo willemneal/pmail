@@ -1,11 +1,16 @@
 {
-  "name": "Gmail.js",
+  "name": "Pmail",
   "version": "0.1",
-  "description": "Hello World Gmail chrome extension",
+  "description": "E2E Searchable Encryption",
+  "browser_action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
-      "js": ["content.js"]
+      "js": ["popup.js", "content.js"],
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
@@ -13,5 +18,12 @@
     "utils/gmail.js",
     "main.js"
   ],
-  "manifest_version": 2
+  "manifest_version": 2,
+  "commands": {
+    "_execute_browser_action": {
+        "suggested_key": {
+            "default": "Ctrl+Shift+A"
+        }
+    }
+}
 }
