@@ -15,15 +15,12 @@
   ],
   "web_accessible_resources": [
     "utils/jquery-1.10.2.min.js",
+    "utils/openpgp.min.js",
     "utils/gmail.js",
+    "encrypt.js",
+    "decrypt.js",
+    "search.js",
     "main.js"
   ],
-  "manifest_version": 2,
-  "commands": {
-    "_execute_browser_action": {
-        "suggested_key": {
-            "default": "Ctrl+Shift+A"
-        }
-    }
-}
+  "manifest_version": 2
 }
