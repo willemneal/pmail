@@ -17,22 +17,39 @@ var main = function(){
   gmail = new Gmail();
   console.log('Hello,', gmail.get.user_email());
 
-  var userPassphrase = prompt("Please enter your pmail password");
-  
+  var userPassphrase = "";
   var userEmail = gmail.get.user_email();
+  
+
+  if (localStorage.getItem("pmail.privkey") == null || localStorage.getItem("pmail.pubkey") == null){
+    userPassphrase = prompt("Pmail Account set up \n Please Enter a passphrase to secure your private key: ");  
+    
+    var options = {
+      userIds: [{email: userEmail}], // multiple user IDs
+      numBits: 4096,                 // RSA key size
+      passphrase: userPassphrase     // protects the private key
+    };
+    
+    openpgp.generateKey(options).then(function(key) {
+      var privkey = key.privateKeyArmored; // '-----BEGIN PGP PRIVATE KEY BLOCK ... '
+      var pubkey = key.publicKeyArmored;   // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
+
+      localStorage.setItem("pmail.privkey", privkey); 
+      localStorage.setItem("pmail.pubkey", pubkey);
+    });
+    
+    
+
+  } else {
+
+    userPassphrase = prompt("Please Enter your passphrase: ");
+  }
+  
+
+  
   var userPublicKey = "";
   var userPrivateKey = "";
 
-  var hkp = new openpgp.HKP('https://pgp.mit.edu');
-  
-  var options = {
-      query: userEmail
-  };
-  
-  hkp.lookup(options).then(function(key) {
-      var pubkey = openpgp.key.readArmored(key);
-      console.log(pubkey);        
-  });
   
   gmail.observe.before('send_message', function(url, body, data, xhr){
     console.log("url:", url, 'body', body, 'email_data', data, 'xhr', xhr);  
