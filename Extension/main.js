@@ -9,7 +9,6 @@ function refresh(f) {
   }
 }
 
-
 var main = function(){
   // NOTE: Always use the latest version of gmail.js from
   // https://github.com/KartikTalwar/gmail.js
@@ -33,7 +32,7 @@ var main = function(){
 
     if(user.passphrase == ""){
 
-      user.privatekey = prompt("Importing a private key? \n Please your private key: ");  
+      user.privatekey = prompt("Importing a private key? \n Please enter your private key: ");  
       localStorage.setItem("pmail.privkey", user.privatekey); 
 
       user.passphrase = prompt("Please enter the passphrase used to secure your private key: "); 
