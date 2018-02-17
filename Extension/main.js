@@ -37,7 +37,7 @@ var main = async function(){
 
     if(user.passphrase == ""){
 
-      user.privatekey = prompt("Importing a private key? \n Please your private key: ");  
+      user.privatekey = prompt("Importing a private key? \n Please enter your private key: ");  
       localStorage.setItem(storPrivkey, user.privatekey); 
 
       user.passphrase = prompt("Please enter the passphrase used to secure your private key: "); 
