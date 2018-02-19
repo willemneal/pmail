@@ -9,6 +9,22 @@ function refresh(f) {
   }
 }
 
+var modaljs = `
+if(document.getElementById("buttonM") != null){
+  document.getElementById("buttonM").addEventListener("click", clickHandler);
+  console.log("Here");
+}
+function clickHandler(element){
+  console.log("Here2");
+  var x = document.getElementById("myText").value;
+  document.getElementById("demo").innerHTML = x;
+}`;
+
+var modalhtml = `
+  <input type="text" id="myText" value="Some text..."> 
+  <input class="switch" id="buttonM" type=button value="Activate Pmail"> 
+  <p id="demo"></p>`;
+
 
 var main = async function(){
   // NOTE: Always use the latest version of gmail.js from
@@ -30,7 +46,7 @@ var main = async function(){
     email : gmail.get.user_email()
   };
 
-
+  /*
   if (localStorage.getItem(storPrivkey) == null || localStorage.getItem(storPubkey) == null){
 
     user.passphrase = prompt("Pmail Account set up (If importing a private key leave response blank)\n Please Enter a passphrase to secure your private key: ");  
@@ -109,6 +125,16 @@ var main = async function(){
   }
   
   console.log(user);
+  */
+  gmail.tools.add_toolbar_button('Pmail', function() {
+    gmail.tools.add_modal_window('Pmail', 
+    modalhtml+'<script>'+modaljs+'</script>',
+      function() {
+        
+        //gmail.tools.remove_modal_window();
+      });
+    // Code here
+  }, 'ptool');
 
 
 

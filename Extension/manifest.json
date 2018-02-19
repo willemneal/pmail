@@ -10,6 +10,7 @@
     {
       "matches": ["https://mail.google.com/*"],
       "js": ["popup.js", "content.js"],
+      "css": ["pmail.css"],
       "run_at": "document_end"
     }
   ],
@@ -20,7 +21,8 @@
     "encrypt.js",
     "decrypt.js",
     "search.js",
-    "main.js"
+    "main.js",
+    "modal.js"
   ],
   "manifest_version": 2
 }
