@@ -10,127 +10,64 @@ function refresh(f) {
 }
 
 var modaljs = `
+hello();
+console.log(user);
+
+
+
 if(document.getElementById("buttonM") != null){
-  document.getElementById("buttonM").addEventListener("click", clickHandler);
+  document.getElementById("buttonM").addEventListener("click", passClick);
   console.log("Here");
 }
-function clickHandler(element){
+function passClick(element){
   console.log("Here2");
-  var x = document.getElementById("myText").value;
+  user.passphrase = document.getElementById("passphrase").value;
   document.getElementById("demo").innerHTML = x;
 }`;
 
 var modalhtml = `
-  <input type="text" id="myText" value="Some text..."> 
+
+  <h4>Please Enter your Passphrase: </h4>
+  <input type="password" id="passphrase"> 
   <input class="switch" id="buttonM" type=button value="Activate Pmail"> 
   <p id="demo"></p>`;
 
+var user = {
+  passphrase : "",
+  publickey : "",
+  privatekey : "",
+  email : "",
+  pmail_active : false,
+  valid : false
+};
+
+var openpgp = window.openpgp;
+var hkp = new openpgp.HKP('https://pgp.mit.edu');
 
 var main = async function(){
   // NOTE: Always use the latest version of gmail.js from
   // https://github.com/KartikTalwar/gmail.js
-  var openpgp = window.openpgp;
-  var hkp = new openpgp.HKP('https://pgp.mit.edu');
+
 
   gmail = new Gmail();
   console.log('Hello,', gmail.get.user_email());
-
-  const storPrivkey = "pmail.privkey-"+gmail.get.user_email();
-  const storPubkey = "pmail.pubkey-"+gmail.get.user_email();
+  user.email = gmail.get.user_email();
 
 
-  var user = {
-    passphrase : "",
-    publickey : "",
-    privatekey : "",
-    email : gmail.get.user_email()
-  };
+  const storPrivkey = "pmail.privkey-"+user.email;
+  const storPubkey = "pmail.pubkey-"+user.email;
 
-  /*
-  if (localStorage.getItem(storPrivkey) == null || localStorage.getItem(storPubkey) == null){
-
-    user.passphrase = prompt("Pmail Account set up (If importing a private key leave response blank)\n Please Enter a passphrase to secure your private key: ");  
-
-    if(user.passphrase == ""){
-
-      user.privatekey = prompt("Importing a private key? \n Please enter your private key: ");  
-      localStorage.setItem(storPrivkey, user.privatekey); 
-
-      user.passphrase = prompt("Please enter the passphrase used to secure your private key: "); 
-      
-      var options = {
-          query: (user.email+' pmailtest')
-      };
-
-      const key = await hkp.lookup(options);
-      localStorage.setItem(storPubkey, key); 
-      user.publickey = key;
-
-
-    } else {
-      
-      var options = {
-        userIds: [{email: user.email , name: "pmailtest"}], // multiple user IDs
-        numBits: 4096,                                 // RSA key size
-        passphrase: user.passphrase                     // protects the private key
-      };
-      
-      const key = await openpgp.generateKey(options);
-      user.privatekey = key.privateKeyArmored; 
-      user.publickey = key.publicKeyArmored;  
-
-      hkp.upload(user.publickey).then(function() {  });
-
-      localStorage.setItem(storPrivkey, user.privatekey); 
-      localStorage.setItem(storPubkey, user.publickey);
-  }
-    
-  } else {
-
-    user.passphrase = prompt("Please Enter your passphrase: ");
-    user.privatekey = localStorage.getItem(storPrivkey);
+  if (localStorage.getItem(storPrivkey) != null && localStorage.getItem(storPubkey) != null){
     user.publickey = localStorage.getItem(storPubkey);
-
-    
-    var privKeyObj = openpgp.key.readArmored(user.privatekey).keys[0];
-    if (privKeyObj.decrypt(user.passphrase)){
-      console.log("Passphrase correct");
-    } else {
-      alert("Passphrase incorrect");
-    }
-
-    var options, encrypted;
-    options = {
-        data: 'Hello, World!',                             // input as String (or Uint8Array)
-        publicKeys: openpgp.key.readArmored(user.publickey).keys,  // for encryption
-        privateKeys: privKeyObj // for signing (optional)
-    };
-
-    const ciphertext = await openpgp.encrypt(options);
-
-    options = {
-        message: openpgp.message.readArmored(ciphertext.data),     // parse armored message
-        publicKeys: openpgp.key.readArmored(user.publickey).keys,    // for verification (optional)
-        privateKey: privKeyObj // for decryption
-    };
-
-    const plaintext = await openpgp.decrypt(options);
-
-    if(ciphertext.data == plaintext.data){
-      console.log("Key Pair Valid");
-    } else {
-      alert("Key pair invalid");
-    }
+    user.privatekey = localStorage.getItem(storPrivkey);
 
   }
   
-  console.log(user);
-  */
   gmail.tools.add_toolbar_button('Pmail', function() {
     gmail.tools.add_modal_window('Pmail', 
     modalhtml+'<script>'+modaljs+'</script>',
       function() {
-        
+    
         //gmail.tools.remove_modal_window();
       });
     // Code here
@@ -177,7 +114,80 @@ var main = async function(){
   });
 
 }
+function hello(){
+  console.log("Hello");
+}
 
+async function checkAccount(){
+  if (user.privatekey != "" && user.publickey != "" && user.passphrase != ""){
+    var privKeyObj = openpgp.key.readArmored(user.privatekey).keys[0];
+    if (privKeyObj.decrypt(user.passphrase)){
+      console.log("Passphrase correct");
+    } else {
+      console.log("Passphrase incorrect");
+      return false;
+    }
+
+    var options, encrypted;
+    options = {
+        data: 'Hello, World!',                             // input as String (or Uint8Array)
+        publicKeys: openpgp.key.readArmored(user.publickey).keys,  // for encryption
+        privateKeys: privKeyObj // for signing (optional)
+    };
+
+    const ciphertext = await openpgp.encrypt(options);
+
+    options = {
+        message: openpgp.message.readArmored(ciphertext.data),     // parse armored message
+        publicKeys: openpgp.key.readArmored(user.publickey).keys,    // for verification (optional)
+        privateKey: privKeyObj // for decryption
+    };
+
+    const plaintext = await openpgp.decrypt(options);
+
+    if(ciphertext.data == plaintext.data){
+      console.log("Key Pair Valid");
+      return false;
+    } else {
+      console.log("Key pair invalid");
+      return true;
+    }
+  }
+  return false;
+}
+
+async function generateKeys(upload){
+  var options = {
+    userIds: [{email: user.email , name: "pmailtest"}], // multiple user IDs
+    numBits: 4096,                                 // RSA key size
+    passphrase: user.passphrase                     // protects the private key
+  };
+  
+  const key = await openpgp.generateKey(options);
+  user.privatekey = key.privateKeyArmored; 
+  user.publickey = key.publicKeyArmored;  
+
+  if(upload){
+    hkp.upload(user.publickey).then(function() {  });
+  }
+  localStorage.setItem(storPrivkey, user.privatekey); 
+  localStorage.setItem(storPubkey, user.publickey);
+}
+
+async function importAccount(){
+  if (user.privatekey != "" && user.publickey != "" && user.passphrase != ""){
+    localStorage.setItem(storPrivkey, user.privatekey); 
+
+    var options = {
+        query: (user.email+' pmailtest')
+    };
+
+    const key = await hkp.lookup(options);
+    localStorage.setItem(storPubkey, key); 
+    user.publickey = key;
+  }
+  return checkAccount;   
+}
 
 
 refresh(main);
