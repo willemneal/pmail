@@ -13,24 +13,48 @@ var modaljs = `
 hello();
 console.log(user);
 
+document.getElementById("priv").value = user.privatekey;
+document.getElementById("pub").value = user.publickey;
 
 
 if(document.getElementById("buttonM") != null){
   document.getElementById("buttonM").addEventListener("click", passClick);
+
   console.log("Here");
 }
-function passClick(element){
+document.getElementById("buttonK").addEventListener("click", importClick);
+
+async function importClick(element){
+  user.privatekey = document.getElementById("priv").value;
+  user.publickey = document.getElementById("pub").value;
+  if((await checkAccount())){
+    importAccount();
+  }
+
+}
+async function passClick(element){
   console.log("Here2");
   user.passphrase = document.getElementById("passphrase").value;
-  document.getElementById("demo").innerHTML = x;
+  if((await checkAccount()) == true){
+    document.getElementById("acc").innerHTML = "Pmail is Active";
+    user.pmail_active = true;
+  } else {
+    document.getElementById("acc").innerHTML = "Account invalid";
+  }
 }`;
 
 var modalhtml = `
-
   <h4>Please Enter your Passphrase: </h4>
   <input type="password" id="passphrase"> 
   <input class="switch" id="buttonM" type=button value="Activate Pmail"> 
-  <p id="demo"></p>`;
+  <input class="switch" id="buttonK" type=button value="Import Keys"> 
+  <p id="acc"></p>
+  <textarea id="priv"
+  rows="10" cols="50"></textarea>
+
+  <textarea id="pub"
+  rows="10" cols="50"></textarea>
+  `
 
 var user = {
   passphrase : "",
@@ -44,6 +68,9 @@ var user = {
 var openpgp = window.openpgp;
 var hkp = new openpgp.HKP('https://pgp.mit.edu');
 
+var storPrivkey = "";
+var storPubkey = "";
+
 var main = async function(){
   // NOTE: Always use the latest version of gmail.js from
   // https://github.com/KartikTalwar/gmail.js
@@ -54,8 +81,8 @@ var main = async function(){
   user.email = gmail.get.user_email();
 
 
-  const storPrivkey = "pmail.privkey-"+user.email;
-  const storPubkey = "pmail.pubkey-"+user.email;
+  storPrivkey = "pmail.privkey-"+user.email;
+  storPubkey = "pmail.pubkey-"+user.email;
 
   if (localStorage.getItem(storPrivkey) != null && localStorage.getItem(storPubkey) != null){
     user.publickey = localStorage.getItem(storPubkey);
@@ -129,8 +156,9 @@ async function checkAccount(){
     }
 
     var options, encrypted;
+    var m = 'Hello, World!';
     options = {
-        data: 'Hello, World!',                             // input as String (or Uint8Array)
+        data: m,                             // input as String (or Uint8Array)
         publicKeys: openpgp.key.readArmored(user.publickey).keys,  // for encryption
         privateKeys: privKeyObj // for signing (optional)
     };
@@ -145,12 +173,14 @@ async function checkAccount(){
 
     const plaintext = await openpgp.decrypt(options);
 
-    if(ciphertext.data == plaintext.data){
+    if(m == plaintext.data){
       console.log("Key Pair Valid");
-      return false;
+      user.valid = true;
+      return true;
     } else {
       console.log("Key pair invalid");
-      return true;
+      user.valid = false;
+      return false;
     }
   }
   return false;
@@ -182,8 +212,8 @@ async function importAccount(){
         query: (user.email+' pmailtest')
     };
 
-    const key = await hkp.lookup(options);
-    localStorage.setItem(storPubkey, key); 
+    //const key = await hkp.lookup(options);
+    localStorage.setItem(storPubkey, user.publickey); 
     user.publickey = key;
   }
   return checkAccount;   
