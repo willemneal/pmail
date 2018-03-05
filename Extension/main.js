@@ -19,10 +19,20 @@ document.getElementById("pub").value = user.publickey;
 
 if(document.getElementById("buttonM") != null){
   document.getElementById("buttonM").addEventListener("click", passClick);
-
-  console.log("Here");
 }
 document.getElementById("buttonK").addEventListener("click", importClick);
+document.getElementById("buttonG").addEventListener("click", genClick);
+
+
+async function passClick(element){
+  user.passphrase = document.getElementById("passphrase").value;
+  if((await checkAccount()) == true){
+    document.getElementById("acc").innerHTML = "Pmail is Active";
+    user.pmail_active = true;
+  } else {
+    document.getElementById("acc").innerHTML = "Account invalid";
+  }
+}
 
 async function importClick(element){
   user.privatekey = document.getElementById("priv").value;
@@ -32,22 +42,19 @@ async function importClick(element){
   }
 
 }
-async function passClick(element){
-  console.log("Here2");
-  user.passphrase = document.getElementById("passphrase").value;
-  if((await checkAccount()) == true){
-    document.getElementById("acc").innerHTML = "Pmail is Active";
-    user.pmail_active = true;
-  } else {
-    document.getElementById("acc").innerHTML = "Account invalid";
-  }
-}`;
+async function genClick(element){
+  await generateKeys(false);
+  document.getElementById("priv").value = user.privatekey;
+  document.getElementById("pub").value = user.publickey;
+}
+`;
 
 var modalhtml = `
   <h4>Please Enter your Passphrase: </h4>
   <input type="password" id="passphrase"> 
   <input class="switch" id="buttonM" type=button value="Activate Pmail"> 
   <input class="switch" id="buttonK" type=button value="Import Keys"> 
+  <input class="switch" id="buttonG" type=button value="Generate Keys"> 
   <p id="acc"></p>
   <textarea id="priv"
   rows="10" cols="50"></textarea>
@@ -176,6 +183,7 @@ async function checkAccount(){
     if(m == plaintext.data){
       console.log("Key Pair Valid");
       user.valid = true;
+      uploadKeys();
       return true;
     } else {
       console.log("Key pair invalid");
@@ -187,21 +195,29 @@ async function checkAccount(){
 }
 
 async function generateKeys(upload){
-  var options = {
-    userIds: [{email: user.email , name: "pmailtest"}], // multiple user IDs
-    numBits: 4096,                                 // RSA key size
-    passphrase: user.passphrase                     // protects the private key
-  };
-  
-  const key = await openpgp.generateKey(options);
-  user.privatekey = key.privateKeyArmored; 
-  user.publickey = key.publicKeyArmored;  
+  if(user.passphrase != ""){
+    var options = {
+      userIds: [{email: user.email , name: "pmailtest"}], // multiple user IDs
+      numBits: 4096,                                 // RSA key size
+      passphrase: user.passphrase                     // protects the private key
+    };
+    
+    const key = await openpgp.generateKey(options);
+    user.privatekey = key.privateKeyArmored; 
+    user.publickey = key.publicKeyArmored;  
 
-  if(upload){
+    if(upload){
+      uploadKeys()
+    }
+    localStorage.setItem(storPrivkey, user.privatekey); 
+    localStorage.setItem(storPubkey, user.publickey);
+  }
+}
+
+function uploadKeys(){
+  if(user.publickey != ""){
     hkp.upload(user.publickey).then(function() {  });
   }
-  localStorage.setItem(storPrivkey, user.privatekey); 
-  localStorage.setItem(storPubkey, user.publickey);
 }
 
 async function importAccount(){
