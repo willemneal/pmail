@@ -102,7 +102,7 @@ var main = async function(){
     modalhtml+'<script>'+modaljs+'</script>',
       function() {
     
-        //gmail.tools.remove_modal_window();
+        gmail.tools.remove_modal_window();
       });
     // Code here
   }, 'ptool');
@@ -114,21 +114,17 @@ var main = async function(){
     console.log("url:", url, 'body', body, 'email_data', data, 'xhr', xhr);  
     var oldCmml = xhr.xhrParams.url.cmml;
 
+    var receivers = body_params.to;
     var body_params = xhr.xhrParams.body_params;
-    var string = '<div dir="ltr"><div>hello</div></div>';
+    var plaintext = body_params.body;
 
-    if (string.length > oldCmml) {
-        xhr.xhrParams.url.cmml = string.length;
-    } else {
-        string += '<div>';
-        while(string.length<oldCmml){
-            string += ' ';
-        }
-        string += '</div>';
-        xhr.xhrParams.url.cmml = string.length;
+    for(i=0;i<receivers.length-1;i++){
+      receivers[i] =receivers[i].replace(/^.*?<(.*?)>.*?$/g, "$1");
     }
-
-    body_params.body = string;
+    
+    var encryptedList = receivers.map(elem => await encrypt(plaintext,elem));
+    
+    body_params.body = encryptedList.join("\n");
 
     console.log(oldCmml, xhr.xhrParams.url.cmml, string);
   });
@@ -151,7 +147,7 @@ var main = async function(){
 function hello(){
   console.log("Hello");
 }
-
+/* Account Setup */
 async function checkAccount(){
   if (user.privatekey != "" && user.publickey != "" && user.passphrase != ""){
     var privKeyObj = openpgp.key.readArmored(user.privatekey).keys[0];
@@ -235,5 +231,44 @@ async function importAccount(){
   return checkAccount;   
 }
 
+/* Encrypt */
+async function encrypt(plaintext, email){
+    var options;
+    var m = plaintext;
+    var publickey = getPublicKey(email);
+
+    options = {
+        data: m,                             // input as String (or Uint8Array)
+        publicKeys: openpgp.key.readArmored(publickey).keys,  // for encryption
+    };
+
+    const ciphertext = await openpgp.encrypt(options);
+    return "EMAIL: "+email+"\n"+ciphertext.data;
+}
+function getPublicKey(email){
+  var request = new XMLHttpRequest();
+  request.open('GET', "http://localhost:8000/publickey?email="+email, false);  // `false` makes the request synchronous
+  request.send(null);
+
+  if (request.status === 200) {
+    var obj = JSON.parse(request.responseText);
+    return obj.Publickey;
+  }
+}
+
+/* Decrypt */
+async function decrypt(ciphertext, privatekey, passphrase){
+  var options;
+  var privKeyObj = openpgp.key.readArmored(privatekey).keys[0];
+  privKeyObj.decrypt(passphrase);
+
+  options = {
+    message: openpgp.message.readArmored(ciphertext),     // parse armored message
+    privateKey: privKeyObj // for decryption
+  };
+  const plaintext = await openpgp.decrypt(options);
+
+  return plaintext.data;
+}
 
 refresh(main);

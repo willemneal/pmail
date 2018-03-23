@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	bolt "github.com/coreos/bbolt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -25,7 +26,7 @@ func GetPublicKey(w http.ResponseWriter, r *http.Request) {
 	db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(publicKeysBucket)
 		v := b.Get(email)
-		user := User{Email: string(email[:]), Publickey: string(v[:])}
+		user := User{Email: r.FormValue("email"), Publickey: string(v[:])}
 		json.NewEncoder(w).Encode(user)
 		return nil
 	})
@@ -39,7 +40,7 @@ func AddPublicKey(w http.ResponseWriter, r *http.Request) {
 	db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(publicKeysBucket)
 		err := b.Put(email, publicKey)
-		user := User{Email: string(email[:]), Publickey: string(publicKey[:])}
+		user := User{Email: r.FormValue("email"), Publickey: r.FormValue("publicKey")}
 		if err == nil {
 			json.NewEncoder(w).Encode(user)
 		}
@@ -64,6 +65,10 @@ func RemovePublicKey(w http.ResponseWriter, r *http.Request) {
 
 // main function to boot up everything
 func main() {
+	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	allowedOrigins := handlers.AllowedOrigins([]string{"*"})
+	allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
+
 	router := mux.NewRouter()
 
 	dbO, err := bolt.Open("pmail.db", 0600, nil)
@@ -84,5 +89,5 @@ func main() {
 	router.HandleFunc("/publickey", GetPublicKey).Methods("GET").Queries("email", "{email}")
 	router.HandleFunc("/publickey", AddPublicKey).Methods("POST")
 	router.HandleFunc("/publickey", RemovePublicKey).Methods("DELETE")
-	log.Fatal(http.ListenAndServe(":8000", router))
+	log.Fatal(http.ListenAndServe(":8000", handlers.CORS(allowedHeaders, allowedOrigins, allowedMethods)(router)))
 }
