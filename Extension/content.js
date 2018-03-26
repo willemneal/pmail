@@ -11,37 +11,21 @@ var g = document.createElement('script');
 g.src = chrome.extension.getURL('utils/openpgp.min.js');
 (document.head || document.documentElement).appendChild(g);
 
-var active = false; 
+var s = document.createElement('script');
+s.src = chrome.extension.getURL('encrypt.js');
+(document.head || document.documentElement).appendChild(s);
 
-function start(){
-    active = true;
-    var s = document.createElement('script');
-    s.src = chrome.extension.getURL('encrypt.js');
-    (document.head || document.documentElement).appendChild(s);
-    
-    var s = document.createElement('script');
-    s.src = chrome.extension.getURL('decrypt.js');
-    (document.head || document.documentElement).appendChild(s);
-    
-    var s = document.createElement('script');
-    s.src = chrome.extension.getURL('search.js');
-    (document.head || document.documentElement).appendChild(s);
-    
-    var s = document.createElement('script');
-    s.src = chrome.extension.getURL('main.js');
-    (document.head || document.documentElement).appendChild(s);
-    
-    
-      //alert("started");
-  }
+var s = document.createElement('script');
+s.src = chrome.extension.getURL('decrypt.js');
+(document.head || document.documentElement).appendChild(s);
+
+var s = document.createElement('script');
+s.src = chrome.extension.getURL('search.js');
+(document.head || document.documentElement).appendChild(s);
 
 
-  chrome.runtime.onMessage.addListener(
-    function(request, sender, sendResponse) {
-      if( request.message === "start" ) {
-        if(active == false){
-            start();            
-        }
-     }
-    }
-  );
+window.addEventListener("load", function(){
+  var s = document.createElement('script');
+  s.src = chrome.extension.getURL('main.js');
+  (document.head || document.documentElement).appendChild(s);
+});

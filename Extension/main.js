@@ -114,19 +114,46 @@ var main = async function(){
     console.log("url:", url, 'body', body, 'email_data', data, 'xhr', xhr);  
     var oldCmml = xhr.xhrParams.url.cmml;
 
-    var receivers = body_params.to;
     var body_params = xhr.xhrParams.body_params;
-    var plaintext = body_params.body;
 
-    for(i=0;i<receivers.length-1;i++){
-      receivers[i] =receivers[i].replace(/^.*?<(.*?)>.*?$/g, "$1");
-    }
-    
-    var encryptedList = receivers.map(elem => await encrypt(plaintext,elem));
-    
-    body_params.body = encryptedList.join("\n");
 
     console.log(oldCmml, xhr.xhrParams.url.cmml, string);
+  });
+
+  gmail.observe.on("compose", function(compose, type) {
+    window.ComposeRef = compose;
+    window.ComposeEncrypted = false;
+    gmail.tools.add_compose_button(compose, '(En|De)crypt',
+    function() {
+      if(window.ComposeEncrypted){
+        var ciphertextList = window.ComposeRef.body();
+        var cListObj = JSON.parse(ciphertextList);
+        var ciphertext = decodeURIComponent(cListObj[user.email]);
+        console.log(ciphertext);
+        decrypt(ciphertext,user.privatekey, user.passphrase).then(function(plaintext){
+          setTimeout(() => {
+            window.ComposeEncrypted = false;
+            window.ComposeRef.body(plaintext);
+          }, 100);
+        });               
+
+      } else {
+        var receivers = window.ComposeRef.recipients().to;
+        var emails = [];
+        var plaintext = window.ComposeRef.body();
+    
+        for(i=0;i< receivers.length;i++){
+          emails[i] =receivers[i].replace(/^.*?<(.*?)>.*?$/g, "$1");
+        }
+        emails.push(user.email)
+        var encryptedList = Promise.all(emails.map(elem => encryptEmail(plaintext,elem))).then( function(results) {
+          setTimeout(() => {
+            window.ComposeEncrypted = true;
+            window.ComposeRef.body('{'+results.join(",")+'}');
+          }, 100);
+        });
+      }        
+    }, 'ptool');
   });
   
   gmail.observe.on("open_email", function(id, url, body, xhr) {
@@ -179,7 +206,6 @@ async function checkAccount(){
     if(m == plaintext.data){
       console.log("Key Pair Valid");
       user.valid = true;
-      uploadKeys();
       return true;
     } else {
       console.log("Key pair invalid");
@@ -203,16 +229,27 @@ async function generateKeys(upload){
     user.publickey = key.publicKeyArmored;  
 
     if(upload){
-      uploadKeys()
+      //hkp.upload(user.publickey).then(function() {  });
+      postPublicKey(user.email,user.publickey);
     }
     localStorage.setItem(storPrivkey, user.privatekey); 
     localStorage.setItem(storPubkey, user.publickey);
   }
 }
 
-function uploadKeys(){
-  if(user.publickey != ""){
-    hkp.upload(user.publickey).then(function() {  });
+function postPublicKey(email,publickey){
+  var request = new XMLHttpRequest();
+  var formData = new FormData();
+  formData.append("email", email); // number 123456 is immediately converted to a string "123456"
+  formData.append("publicKey", publickey); // number 123456 is immediately converted to a string "123456"
+
+
+  request.open('POST', "http://localhost:8000/publickey", false);  // `false` makes the request synchronous
+  request.send(formData);
+
+  if (request.status === 200) {
+    var obj = JSON.parse(request.responseText);
+    return obj.Publickey;
   }
 }
 
@@ -232,7 +269,7 @@ async function importAccount(){
 }
 
 /* Encrypt */
-async function encrypt(plaintext, email){
+async function encryptEmail(plaintext, email){
     var options;
     var m = plaintext;
     var publickey = getPublicKey(email);
@@ -243,7 +280,7 @@ async function encrypt(plaintext, email){
     };
 
     const ciphertext = await openpgp.encrypt(options);
-    return "EMAIL: "+email+"\n"+ciphertext.data;
+    return '"'+email+'": "'+encodeURIComponent(ciphertext.data)+'"'
 }
 function getPublicKey(email){
   var request = new XMLHttpRequest();
