@@ -90,7 +90,6 @@ var main = async function(){
 
   storPrivkey = "pmail.privkey-"+user.email;
   storPubkey = "pmail.pubkey-"+user.email;
-
   if (localStorage.getItem(storPrivkey) != null && localStorage.getItem(storPubkey) != null){
     user.publickey = localStorage.getItem(storPubkey);
     user.privatekey = localStorage.getItem(storPrivkey);
@@ -104,13 +103,12 @@ var main = async function(){
     
         gmail.tools.remove_modal_window();
       });
-    // Code here
   }, 'ptool');
 
 
 
   
-  gmail.observe.before('send_message', function(url, body, data, xhr){
+/*  gmail.observe.before('send_message', function(url, body, data, xhr){
     console.log("url:", url, 'body', body, 'email_data', data, 'xhr', xhr);  
     var oldCmml = xhr.xhrParams.url.cmml;
 
@@ -118,13 +116,13 @@ var main = async function(){
 
 
     console.log(oldCmml, xhr.xhrParams.url.cmml, string);
-  });
+  });*/
 
   gmail.observe.on("compose", function(compose, type) {
     window.ComposeRef = compose;
     window.ComposeEncrypted = false;
     gmail.tools.add_compose_button(compose, '(En|De)crypt',
-    function() {
+    function(temp) {
       if(window.ComposeEncrypted){
         var ciphertextList = window.ComposeRef.body();
         var cListObj = JSON.parse(ciphertextList);
@@ -158,7 +156,24 @@ var main = async function(){
   
   gmail.observe.on("open_email", function(id, url, body, xhr) {
     console.log("id:", id, "url:", url, 'body', body, 'xhr', xhr);
-    console.log(gmail.get.email_data(id));
+    var thread_email_list = gmail.get.email_data(id).total_threads;
+    var ret = thread_email_list.map(elem => {
+      window.emailRef = gmail.dom.email(elem);
+      var ciphertextList = $(gmail.dom.email(elem).body()).text();
+        if(ciphertextList != ""){
+          var cListObj = JSON.parse(ciphertextList);
+          var ciphertext = decodeURIComponent(cListObj[user.email]);
+          console.log(ciphertext);
+          decrypt(ciphertext,user.privatekey, user.passphrase).then(function(plaintext){
+            setTimeout(() => {
+              window.emailRef.body(plaintext);
+            }, 100);
+          });
+      }
+    });
+    
+    decrypt_worker.postMessage("Hello");
+    console.log(ret);
     console.log(user);
    
   })
