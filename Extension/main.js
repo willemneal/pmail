@@ -77,6 +77,7 @@ var hkp = new openpgp.HKP('https://pgp.mit.edu');
 
 var storPrivkey = "";
 var storPubkey = "";
+var searchable_list = [];
 
 var main = async function(){
   // NOTE: Always use the latest version of gmail.js from
@@ -86,8 +87,10 @@ var main = async function(){
   gmail = new Gmail();
   console.log('Hello,', gmail.get.user_email());
   user.email = gmail.get.user_email();
-
-
+  searchable_list = JSON.parse(localStorage["pmail.searchable_encrypted"+user.email]);
+  if(searchable_list == undefined){
+    localStorage["pmail.searchable_encrypted"+user.email] = JSON.stringify([]);
+  }
   storPrivkey = "pmail.privkey-"+user.email;
   storPubkey = "pmail.pubkey-"+user.email;
   if (localStorage.getItem(storPrivkey) != null && localStorage.getItem(storPubkey) != null){
@@ -154,34 +157,42 @@ var main = async function(){
     }, 'ptool');
   });
   
-  gmail.observe.on("open_email", function(id, url, body, xhr) {
-    console.log("id:", id, "url:", url, 'body', body, 'xhr', xhr);
-    var thread_email_list = gmail.get.email_data(id).total_threads;
-    var ret = thread_email_list.map(elem => {
-      window.emailRef = gmail.dom.email(elem);
-      var ciphertextList = $(gmail.dom.email(elem).body()).text();
-        if(ciphertextList != ""){
+  gmail.observe.on('view_thread', function(obj) {
+    console.log('view_thread', obj);
+  });
+  gmail.observe.on("view_email", function(obj) {
+    console.log("here");
+    window.emailRef = obj;
+    var ciphertextList = $(obj.body()).text();
+      if(ciphertextList != ""){
+        try {
           var cListObj = JSON.parse(ciphertextList);
           var ciphertext = decodeURIComponent(cListObj[user.email]);
           console.log(ciphertext);
           decrypt(ciphertext,user.privatekey, user.passphrase).then(function(plaintext){
+            if(!searchable_list.contains(window.emailRef.id)){
+              createEncryptedIndex(plaintext,window.emailRef.id)
+            }
             setTimeout(() => {
               window.emailRef.body(plaintext);
             }, 100);
           });
-      }
-    });
-    
-    decrypt_worker.postMessage("Hello");
-    console.log(ret);
-    console.log(user);
+        } catch (e){
+          console.log("Not Pmail email");
+        }
+    }
+  });
    
-  })
   
   gmail.observe.before('http_event', function(params) {
     
       var query = params['url']['q'];
-      console.log(query);
+      if(query && !/\:/.test(query) && !/search/.test(window.location)) {
+        query = decodeURIComponent(query).toLowerCase();
+        localStorage["prev_query"] = query;
+        console.log("Encrypted search for:", query);
+        tokenize(query);
+      }
       
   });
 
@@ -322,5 +333,151 @@ async function decrypt(ciphertext, privatekey, passphrase){
 
   return plaintext.data;
 }
+
+/* Search */
+
+// -------------------- Create Index for E-mail -------------------- \\
+/**
+ * Creates and encrypted index and sends it to the Pmail server
+ * @param  {String} plaintext_body The decrypted email
+ * @param  {String} email_id       The gmail id
+ * @return {void}                
+ */
+function createEncryptedIndex(plaintext_body, email_id) {
+  // Clean the html tags from the body. This will delete anything between
+  // angled brackets
+  var html_free = plaintext_body.replace(/<[^>]+>/g, '');
+  console.log("Body to parse: ");
+  console.log(html_free);
+  var index = parse_body(html_free);
+  console.log("Unencrypted index:", index);
+  var enc_index = encrypt_index(index, email_id);
+  console.log("Encrypted index to be sent to the server: ");
+  console.log(enc_index);
+  var send_package = gmail.get.user_email()
+    .concat(delimiter + 'update' + delimiter, JSON.stringify(enc_index));
+  sendWebSocket(send_package)
+}
+/**
+ * Translates the Gmail IDs to RFC IDs and redirects the user to a 
+ * Gmail search page
+ * @param  {String[]} ids   Gmail IDs
+ * @param  {String} query 	The plaintext search query given by the user
+ * @return {void}       	void
+ */
+function loadSearchResults(ids, query){
+  var emails = [];
+  var email, source, RFCid, url;
+  var msgids = [];
+  var search_query;
+  for (var i = 0; i < ids.length; i++) {
+    RFCid = getRFCid(ids[i])
+    // Add the RFC822 message ID to the list
+    msgids.push("rfc822msgid:".concat(RFCid)); 
+  }
+  // Create the search query for the search box
+  search_query = msgids.join(" OR "); 
+  console.log("search_query:", search_query);
+  url = encodeURIComponent(search_query);
+  user_index = getUserNumber();
+  url = 'https://mail.google.com/mail/u/'.concat(user_index).concat('/#search/').concat(url);
+  console.log(url);
+  // Redirect user to the search results page
+  //window.location.href = url; doesnt work
+  setTimeout(function(){ 
+    window.location.assign(url);
+    // Set the search bar to the expect plaintext query
+    if (query == undefined) {
+    	query = localStorage["prev_query"];  
+    }
+    cleanSearchBar();
+    console.log("resetting the search bar to \""+ query + "\"");
+  }, 100);
+}   
+
+
+//OKAY, check this out. 
+//it calls: gmail.js: 2565 -> gmail.js: 618
+function getRFCid(email_id) {
+  //console.log("Now the email_id is: " + email_id);
+  var email = new gmail.dom.email(email_id);
+  //console.log(email.source().match(/Message-I[dD]: <(.*?)>/));
+  return email.source().match(/Message-I[dD]: &lt;(.*?)&gt;/)[1];
+  //return email.source().match(/Message-I[dD]: <(.*?)>/)[1];
+}
+/**
+ * Uses jQuery to set the Gmail search bar to "query". This is used to "pretty-up"
+ * the search bar so the user does not see the RFC IDs.
+ * @param {String} query 	The plaintext search query given by the user
+ */
+function setSearchBar(query) {
+  $("#gbqfq").val(query)
+}
+function cleanSearchBar() {
+  if (/rfc822msgid/.test(document.getElementById("gbqfq").value)) {
+    document.getElementById("gbqfq").value = localStorage["prev_query"];
+  }
+}
+
+/**
+ * Determine the interal Gmail index for the user. This is used to the determine
+ * which page to redirect the user during an encrypted search.
+ * @return {int} 	The Gmail index of the user
+ */
+function getUserNumber() {
+	// Regex for the number in the URL
+  var username = gmail.get.user_email();
+  var logged_in_users = gmail.get.loggedin_accounts();
+  if (logged_in_users.length == 0) {
+  	return window.location.href.match(/mail\/u\/(\d+)/)[1]
+  }
+  for (var i in logged_in_users) {
+    if (logged_in_users[i].email == username) 
+      return logged_in_users[i].index; 
+  }
+}
+/**
+ * Hash the keywork and the user's private key
+ * @param  {String} keyword plaintext of the keyword
+ * @return {String}         Cryptographically safe hash of keyword
+ */
+
+async function tokenize(keyword) {
+  const hash = await sha256(keyword + user.privatekey);
+  console.log(hash.substring(0,16));
+  setSearchBar(hash.substring(0,16));
+  return hash.substring(0,16); 
+}
+async function sha256(message) {
+  // encode as UTF-8
+  const msgBuffer = new TextEncoder('utf-8').encode(message);
+
+  // hash the message
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  
+  // convert ArrayBuffer to Array
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+  // convert bytes to hex string
+  const hashHex = hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('');
+  return hashHex;
+}
+
+/**
+ * Create a list of the words in the body
+ * @param  {String} body String content of the email
+ * @return {List} 	List of all the words in the email
+ */
+function parse_body(body) {
+  var list = [];
+  var split = body.split(/[\W]+/);
+  for (var s of split) {
+    if (s !== "" && !s.match(/[\<\>]/)) {
+      list.push(s.toLowerCase());
+    }
+  }
+  return list;
+}
+
 
 refresh(main);
