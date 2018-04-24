@@ -87,10 +87,11 @@ var main = async function(){
   gmail = new Gmail();
   console.log('Hello,', gmail.get.user_email());
   user.email = gmail.get.user_email();
-  searchable_list = JSON.parse(localStorage["pmail.searchable_encrypted"+user.email]);
-  if(searchable_list == undefined){
+
+  if(localStorage["pmail.searchable_encrypted"+user.email] == undefined){
     localStorage["pmail.searchable_encrypted"+user.email] = JSON.stringify([]);
   }
+  searchable_list = JSON.parse(localStorage["pmail.searchable_encrypted"+user.email])
   storPrivkey = "pmail.privkey-"+user.email;
   storPubkey = "pmail.pubkey-"+user.email;
   if (localStorage.getItem(storPrivkey) != null && localStorage.getItem(storPubkey) != null){
@@ -170,7 +171,7 @@ var main = async function(){
           var ciphertext = decodeURIComponent(cListObj[user.email]);
           console.log(ciphertext);
           decrypt(ciphertext,user.privatekey, user.passphrase).then(function(plaintext){
-            if(!searchable_list.contains(window.emailRef.id)){
+            if(!searchable_list.includes(window.emailRef.id)){
               createEncryptedIndex(plaintext,window.emailRef.id)
             }
             setTimeout(() => {
@@ -295,19 +296,26 @@ async function importAccount(){
 }
 
 /* Encrypt */
+async function encrypt(plaintext, publicKey){
+  var options;
+  var m = plaintext;
+
+  options = {
+      data: m,                             // input as String (or Uint8Array)
+      publicKeys: openpgp.key.readArmored(publicKey).keys,  // for encryption
+  };
+  const ciphertext = await openpgp.encrypt(options);
+  return ciphertext.data;
+}
 async function encryptEmail(plaintext, email){
     var options;
     var m = plaintext;
-    var publickey = getPublicKey(email);
+    var publicKey = getPublicKey(email);
 
-    options = {
-        data: m,                             // input as String (or Uint8Array)
-        publicKeys: openpgp.key.readArmored(publickey).keys,  // for encryption
-    };
-
-    const ciphertext = await openpgp.encrypt(options);
-    return '"'+email+'": "'+encodeURIComponent(ciphertext.data)+'"'
+    const ciphertext = await encrypt(plaintext, publicKey);
+    return '"'+email+'": "'+encodeURIComponent(ciphertext)+'"'
 }
+
 function getPublicKey(email){
   var request = new XMLHttpRequest();
   request.open('GET', "http://localhost:8000/publickey?email="+email, false);  // `false` makes the request synchronous
@@ -343,7 +351,7 @@ async function decrypt(ciphertext, privatekey, passphrase){
  * @param  {String} email_id       The gmail id
  * @return {void}                
  */
-function createEncryptedIndex(plaintext_body, email_id) {
+async function createEncryptedIndex(plaintext_body, email_id) {
   // Clean the html tags from the body. This will delete anything between
   // angled brackets
   var html_free = plaintext_body.replace(/<[^>]+>/g, '');
@@ -351,12 +359,11 @@ function createEncryptedIndex(plaintext_body, email_id) {
   console.log(html_free);
   var index = parse_body(html_free);
   console.log("Unencrypted index:", index);
-  var enc_index = encrypt_index(index, email_id);
+  var enc_index = await encrypt_index(index, email_id);
   console.log("Encrypted index to be sent to the server: ");
   console.log(enc_index);
-  var send_package = gmail.get.user_email()
-    .concat(delimiter + 'update' + delimiter, JSON.stringify(enc_index));
-  sendWebSocket(send_package)
+  var send_package = gmail.get.user_email().concat(JSON.stringify(enc_index));
+  console.log(send_package)
 }
 /**
  * Translates the Gmail IDs to RFC IDs and redirects the user to a 
@@ -445,7 +452,6 @@ function getUserNumber() {
 async function tokenize(keyword) {
   const hash = await sha256(keyword + user.privatekey);
   console.log(hash.substring(0,16));
-  setSearchBar(hash.substring(0,16));
   return hash.substring(0,16); 
 }
 async function sha256(message) {
@@ -477,6 +483,25 @@ function parse_body(body) {
     }
   }
   return list;
+}
+
+/**
+ * Encrypt the user's cleartext index
+ * TODO add more randomness?
+ * @return
+ */
+async function encrypt_index(index, email_id) {
+  var enc = {};
+  var token = "";
+  var key = "";
+  var len = index.length;
+  var tok_email_id = encodeURIComponent(await encrypt(email_id, user.publickey));
+  for (var i = 0; i < len; i++) {
+    key = await tokenize(index[i]);
+    enc[key] = tok_email_id;
+  }
+  console.log(JSON.stringify(enc));
+  return enc;
 }
 
 
