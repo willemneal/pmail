@@ -18,6 +18,8 @@ type User struct {
 }
 
 var publicKeysBucket = []byte("PublicKeys")
+var searchBucket = []byte("EncryptedSearch")
+
 var db *bolt.DB
 
 //GetPublicKey with the param email
@@ -61,6 +63,57 @@ func RemovePublicKey(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
+}
+
+//GetSearchIndex with the param email
+func GetSearchIndex(w http.ResponseWriter, r *http.Request) {
+	var encrypted_index []string
+	_ = json.Unmarshal([]byte(r.FormValue("encrypted_index")), &encrypted_index)
+
+	var email_list []string
+
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(searchBucket)
+		for _, elem := range encrypted_index {
+			v := b.Get(elem)
+			out, _ = json.Marshal(v)
+			email_list = append(email_list, out...)
+		}
+		json.NewEncoder(w).Encode(email_list)
+		return nil
+	})
+
+}
+
+//AddSearchIndex adds a the public key with email as the key
+func AddSearchIndex(w http.ResponseWriter, r *http.Request) {
+	email := []byte(r.FormValue("email_id"))
+	var encrypted_index []string
+	_ = json.Unmarshal([]byte(r.FormValue("encrypted_index")), &encrypted_index)
+	
+	db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket(searchBucket)
+		for _, elem := range encrypted_index {
+			v := b.Get(elem)
+			if v == nil {
+				var new_enc_index []string
+				new_enc_index = append(new_enc_index, email)
+				out, _ = json.Marshal(new_enc_index)
+				err := b.Put(elem, out)
+			} else {
+				var curr_enc_index []string
+				_ = json.Unmarshal([]byte(v), &curr_enc_index)
+				curr_enc_index = append(curr_enc_index, email)
+				out, _ = json.Marshal(curr_enc_index)
+				err := b.Put(elem, out)
+			}
+
+		}
+		if err == nil {
+			json.NewEncoder(w).Encode(email)
+		}
+		return nil
+	})
 }
 
 // main function to boot up everything

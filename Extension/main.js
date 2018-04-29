@@ -359,11 +359,25 @@ async function createEncryptedIndex(plaintext_body, email_id) {
   console.log(html_free);
   var index = parse_body(html_free);
   console.log("Unencrypted index:", index);
-  var enc_index = await encrypt_index(index, email_id);
+  var tok_email_id = encodeURIComponent(await encrypt(email_id, user.publickey));
+  var enc_index = await encrypt_index(index);
   console.log("Encrypted index to be sent to the server: ");
   console.log(enc_index);
-  var send_package = gmail.get.user_email().concat(JSON.stringify(enc_index));
-  console.log(send_package)
+  console.log("Encypted email id: ");
+  console.log(tok_email_id);
+
+  var request = new XMLHttpRequest();
+  var formData = new FormData();
+  formData.append("email_id", tok_email_id);
+  formData.append("encrypted_index", JSON.stringify(enc_index)); // number 123456 is immediately converted to a string "123456"
+
+  request.open('POST', "http://localhost:8000/search", false);  // `false` makes the request synchronous
+  request.send(formData);
+
+  if (request.status === 200) {
+    var obj = JSON.parse(request.responseText);
+    return obj.Publickey;
+  }
 }
 /**
  * Translates the Gmail IDs to RFC IDs and redirects the user to a 
@@ -372,13 +386,13 @@ async function createEncryptedIndex(plaintext_body, email_id) {
  * @param  {String} query 	The plaintext search query given by the user
  * @return {void}       	void
  */
-function loadSearchResults(ids, query){
+async function loadSearchResults(ids, query){
   var emails = [];
   var email, source, RFCid, url;
   var msgids = [];
   var search_query;
   for (var i = 0; i < ids.length; i++) {
-    RFCid = getRFCid(ids[i])
+    RFCid = await getRFCid(ids[i])
     // Add the RFC822 message ID to the list
     msgids.push("rfc822msgid:".concat(RFCid)); 
   }
@@ -399,18 +413,15 @@ function loadSearchResults(ids, query){
     }
     cleanSearchBar();
     console.log("resetting the search bar to \""+ query + "\"");
+    setSearchBar(query)
   }, 100);
 }   
 
 
-//OKAY, check this out. 
-//it calls: gmail.js: 2565 -> gmail.js: 618
-function getRFCid(email_id) {
-  //console.log("Now the email_id is: " + email_id);
-  var email = new gmail.dom.email(email_id);
-  //console.log(email.source().match(/Message-I[dD]: <(.*?)>/));
-  return email.source().match(/Message-I[dD]: &lt;(.*?)&gt;/)[1];
-  //return email.source().match(/Message-I[dD]: <(.*?)>/)[1];
+async function getRFCid(email_id) {
+
+  var emailSource = await gmail.get.email_source_promise(email_id);
+  return emailSource.match(/Message-I[dD]:\W<(.*)>/)[1];
 }
 /**
  * Uses jQuery to set the Gmail search bar to "query". This is used to "pretty-up"
@@ -451,8 +462,8 @@ function getUserNumber() {
 
 async function tokenize(keyword) {
   const hash = await sha256(keyword + user.privatekey);
-  console.log(hash.substring(0,16));
-  return hash.substring(0,16); 
+  console.log(hash);
+  return hash; 
 }
 async function sha256(message) {
   // encode as UTF-8
@@ -491,17 +502,14 @@ function parse_body(body) {
  * @return
  */
 async function encrypt_index(index, email_id) {
-  var enc = {};
-  var token = "";
-  var key = "";
   var len = index.length;
-  var tok_email_id = encodeURIComponent(await encrypt(email_id, user.publickey));
+  encList = []
   for (var i = 0; i < len; i++) {
     key = await tokenize(index[i]);
-    enc[key] = tok_email_id;
+    encList.push(key)
   }
-  console.log(JSON.stringify(enc));
-  return enc;
+  console.log(JSON.stringify(encList));
+  return encList;
 }
 
 
