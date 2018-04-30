@@ -252,9 +252,10 @@ async function generateKeys(upload){
     };
     
     const key = await openpgp.generateKey(options);
-    user.privatekey = key.privateKeyArmored; 
-    user.publickey = key.publicKeyArmored;  
-
+    if (user.privatekey == ""){
+      user.privatekey = key.privateKeyArmored; 
+      user.publickey = key.publicKeyArmored;  
+    } 
     if(upload){
       //hkp.upload(user.publickey).then(function() {  });
       postPublicKey(user.email,user.publickey);
@@ -371,22 +372,28 @@ async function createEncryptedIndex(plaintext_body, email_id) {
   formData.append("email_id", tok_email_id);
   formData.append("encrypted_index", JSON.stringify(enc_index)); // number 123456 is immediately converted to a string "123456"
 
-  request.open('POST', "http://localhost:8000/search", false);  // `false` makes the request synchronous
+  console.log(tok_email_id);
+  console.log(JSON.stringify(enc_index));
+
+  request.open('POST', "http://localhost:8000/search", true);  // `false` makes the request synchronous
   request.send(formData);
 
   if (request.status === 200) {
     var obj = JSON.parse(request.responseText);
-    return obj.Publickey;
+    console.log(obj);
   }
 }
 /**
  * Translates the Gmail IDs to RFC IDs and redirects the user to a 
  * Gmail search page
- * @param  {String[]} ids   Gmail IDs
  * @param  {String} query 	The plaintext search query given by the user
  * @return {void}       	void
  */
-async function loadSearchResults(ids, query){
+async function loadSearchResults(query){
+  var ids = await getIds(query);
+
+
+
   var emails = [];
   var email, source, RFCid, url;
   var msgids = [];
@@ -417,6 +424,13 @@ async function loadSearchResults(ids, query){
   }, 100);
 }   
 
+async function getIds(query){
+  console.log(query);
+  var queryList = query.split(" ");
+
+  queryList.map(tokenize)
+
+}
 
 async function getRFCid(email_id) {
 
@@ -501,7 +515,7 @@ function parse_body(body) {
  * TODO add more randomness?
  * @return
  */
-async function encrypt_index(index, email_id) {
+async function encrypt_index(index) {
   var len = index.length;
   encList = []
   for (var i = 0; i < len; i++) {

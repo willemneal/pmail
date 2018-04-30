@@ -65,8 +65,8 @@ func RemovePublicKey(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//GetSearchIndex with the param email
-func GetSearchIndex(w http.ResponseWriter, r *http.Request) {
+//PutSearchIndex with the param email
+func PutSearchIndex(w http.ResponseWriter, r *http.Request) {
 	var encrypted_index []string
 	_ = json.Unmarshal([]byte(r.FormValue("encrypted_index")), &encrypted_index)
 
@@ -75,9 +75,11 @@ func GetSearchIndex(w http.ResponseWriter, r *http.Request) {
 	db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(searchBucket)
 		for _, elem := range encrypted_index {
-			v := b.Get(elem)
-			out, _ = json.Marshal(v)
-			email_list = append(email_list, out...)
+			var curr_email_list []string
+			v := b.Get([]byte(elem))
+			_ = json.Unmarshal([]byte(v), &curr_email_list)
+			fmt.Println(curr_email_list)
+			email_list = append(email_list, curr_email_list...)
 		}
 		json.NewEncoder(w).Encode(email_list)
 		return nil
@@ -93,27 +95,40 @@ func AddSearchIndex(w http.ResponseWriter, r *http.Request) {
 	
 	db.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket(searchBucket)
+		fmt.Println(encrypted_index)
 		for _, elem := range encrypted_index {
-			v := b.Get(elem)
+			fmt.Println(elem)
+			v := b.Get([]byte(elem))
 			if v == nil {
 				var new_enc_index []string
-				new_enc_index = append(new_enc_index, email)
-				out, _ = json.Marshal(new_enc_index)
-				err := b.Put(elem, out)
+				new_enc_index = append(new_enc_index, string(email))
+				fmt.Println(new_enc_index)
+				out, _ := json.Marshal(new_enc_index)
+				_ = b.Put([]byte(elem), []byte(out))
 			} else {
 				var curr_enc_index []string
 				_ = json.Unmarshal([]byte(v), &curr_enc_index)
-				curr_enc_index = append(curr_enc_index, email)
-				out, _ = json.Marshal(curr_enc_index)
-				err := b.Put(elem, out)
+				if stringInSlice(string(email),curr_enc_index) == false {
+					curr_enc_index = append(curr_enc_index, string(email))
+					fmt.Println(curr_enc_index)
+					out, _ := json.Marshal(curr_enc_index)
+					_ = b.Put([]byte(elem), []byte(out) )
+				}
 			}
 
 		}
-		if err == nil {
-			json.NewEncoder(w).Encode(email)
-		}
+		json.NewEncoder(w).Encode(string(email))
 		return nil
 	})
+}
+
+func stringInSlice(a string, list []string) bool {
+    for _, b := range list {
+        if b == a {
+            return true
+        }
+    }
+    return false
 }
 
 // main function to boot up everything
@@ -139,8 +154,19 @@ func main() {
 		return nil
 	})
 
+	db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists(searchBucket)
+		if err != nil {
+			return fmt.Errorf("Error creating Search Bucket %s", err)
+		}
+		return nil
+	})
+
 	router.HandleFunc("/publickey", GetPublicKey).Methods("GET").Queries("email", "{email}")
 	router.HandleFunc("/publickey", AddPublicKey).Methods("POST")
 	router.HandleFunc("/publickey", RemovePublicKey).Methods("DELETE")
+	router.HandleFunc("/search", PutSearchIndex).Methods("PUT")
+	router.HandleFunc("/search", AddSearchIndex).Methods("POST")
+
 	log.Fatal(http.ListenAndServe(":8000", handlers.CORS(allowedHeaders, allowedOrigins, allowedMethods)(router)))
 }
