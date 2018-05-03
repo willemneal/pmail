@@ -167,7 +167,8 @@ var main = async function(){
     var ciphertextList = $(obj.body()).text();
       if(ciphertextList != ""){
         try {
-          var cListObj = JSON.parse(ciphertextList);
+
+          var cListObj = JSON.parse("{"+ciphertextList.match(/[^}{]+(?=})/s)[0]+"}");
           var ciphertext = decodeURIComponent(cListObj[user.email]);
           console.log(ciphertext);
           decrypt(ciphertext,user.privatekey, user.passphrase).then(function(plaintext){
