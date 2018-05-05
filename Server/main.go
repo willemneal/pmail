@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 
 	bolt "github.com/coreos/bbolt"
 	"github.com/gorilla/handlers"
@@ -108,12 +109,10 @@ func AddSearchIndex(w http.ResponseWriter, r *http.Request) {
 			} else {
 				var curr_enc_index []string
 				_ = json.Unmarshal([]byte(v), &curr_enc_index)
-				if stringInSlice(string(email),curr_enc_index) == false {
-					curr_enc_index = append(curr_enc_index, string(email))
-					fmt.Println(curr_enc_index)
-					out, _ := json.Marshal(curr_enc_index)
-					_ = b.Put([]byte(elem), []byte(out) )
-				}
+				curr_enc_index = append(curr_enc_index, string(email))
+				res_enc_index := removeDuplicatesUnordered(curr_enc_index)
+				out, _ := json.Marshal(res_enc_index)
+				_ = b.Put([]byte(elem), []byte(out) )
 			}
 
 		}
@@ -122,13 +121,20 @@ func AddSearchIndex(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func stringInSlice(a string, list []string) bool {
-    for _, b := range list {
-        if b == a {
-            return true
-        }
+func removeDuplicatesUnordered(elements []string) []string {
+    encountered := map[string]bool{}
+
+    // Create a map of all unique elements.
+    for v:= range elements {
+        encountered[elements[v]] = true
     }
-    return false
+
+    // Place all keys from the map into a slice.
+    result := []string{}
+    for key, _ := range encountered {
+        result = append(result, key)
+    }
+    return result
 }
 
 // main function to boot up everything

@@ -189,11 +189,15 @@ var main = async function(){
   gmail.observe.before('http_event', function(params) {
     
       var query = params['url']['q'];
-      if(query && !/\:/.test(query) && !/search/.test(window.location)) {
+      console.log(query)
+      if(query && !query.includes("rfc822msgid")) {
         query = decodeURIComponent(query).toLowerCase();
         localStorage["prev_query"] = query;
         console.log("Encrypted search for:", query);
-        tokenize(query);
+        loadSearchResults(query)
+      } else if (query && query.includes("rfc822msgid")){
+        query = localStorage["prev_query"];
+        setSearchBar(query);
       }
       
   });
@@ -391,46 +395,61 @@ async function createEncryptedIndex(plaintext_body, email_id) {
  * @return {void}       	void
  */
 async function loadSearchResults(query){
-  var ids = await getIds(query);
-
-
-
+  var queryList = query.trim().split(/\W+/);
+  var msgids = queryList;
+  console.log(queryList);
+  console.log(msgids);
+  var ids = await getIds(queryList);
   var emails = [];
   var email, source, RFCid, url;
-  var msgids = [];
   var search_query;
-  for (var i = 0; i < ids.length; i++) {
-    RFCid = await getRFCid(ids[i])
-    // Add the RFC822 message ID to the list
-    msgids.push("rfc822msgid:".concat(RFCid)); 
-  }
-  // Create the search query for the search box
-  search_query = msgids.join(" OR "); 
-  console.log("search_query:", search_query);
-  url = encodeURIComponent(search_query);
-  user_index = getUserNumber();
-  url = 'https://mail.google.com/mail/u/'.concat(user_index).concat('/#search/').concat(url);
-  console.log(url);
-  // Redirect user to the search results page
-  //window.location.href = url; doesnt work
-  setTimeout(function(){ 
-    window.location.assign(url);
-    // Set the search bar to the expect plaintext query
-    if (query == undefined) {
-    	query = localStorage["prev_query"];  
+  if(ids.length != 0){
+    for (var i = 0; i < ids.length; i++) {
+      RFCid = await getRFCid(ids[i])
+      // Add the RFC822 message ID to the list
+      msgids.push("rfc822msgid:".concat(RFCid)); 
     }
-    cleanSearchBar();
-    console.log("resetting the search bar to \""+ query + "\"");
-    setSearchBar(query)
-  }, 100);
+    // Create the search query for the search box
+    search_query = msgids.join(" OR "); 
+    console.log("search_query:", search_query);
+    url = encodeURIComponent(search_query);
+    user_index = getUserNumber();
+    url = 'https://mail.google.com/mail/u/'.concat(user_index).concat('/#search/').concat(url);
+    console.log(url);
+    // Redirect user to the search results page
+    //window.location.href = url; doesnt work
+    window.location.replace(url);
+  }
+  
 }   
 
-async function getIds(query){
-  console.log(query);
-  var queryList = query.split(" ");
+async function getIds(queryList){
+  queryHashList = []
+  decList = new Set()
 
-  queryList.map(tokenize)
+  for (var i = 0; i < queryList.length; i++) {
+    key = await tokenize(queryList[i]);
+    queryHashList.push(key)
+  }
+  var request = new XMLHttpRequest();
+  var formData = new FormData();
+  formData.append("encrypted_index", JSON.stringify(queryHashList)); // number 123456 is immediately converted to a string "123456"
 
+
+  request.open('PUT', "http://localhost:8000/search", false);  // `false` makes the request synchronous
+  request.send(formData);
+
+  if (request.status === 200) {
+    var obj = JSON.parse(request.responseText);
+    if(obj != null){
+      for(var j =0; j < obj.length; j++){
+        var deID = await decrypt(decodeURIComponent(obj[j]),user.privatekey, user.passphrase)
+        decList.add(deID)
+      }
+    }
+  }
+  console.log(decList)
+  return Array.from(decList)
 }
 
 async function getRFCid(email_id) {
