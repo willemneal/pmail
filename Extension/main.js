@@ -35,6 +35,7 @@ async function passClick(element){
 }
 
 async function importClick(element){
+  user.passphrase = document.getElementById("passphrase").value;
   user.privatekey = document.getElementById("priv").value;
   user.publickey = document.getElementById("pub").value;
   if((await checkAccount())){
@@ -43,7 +44,8 @@ async function importClick(element){
 
 }
 async function genClick(element){
-  await generateKeys(false);
+  user.passphrase = document.getElementById("passphrase").value;
+  await generateKeys(true);
   document.getElementById("priv").value = user.privatekey;
   document.getElementById("pub").value = user.publickey;
 }
@@ -288,17 +290,10 @@ function postPublicKey(email,publickey){
 
 async function importAccount(){
   if (user.privatekey != "" && user.publickey != "" && user.passphrase != ""){
+    postPublicKey(user.email,user.publickey);
     localStorage.setItem(storPrivkey, user.privatekey); 
-
-    var options = {
-        query: (user.email+' pmailtest')
-    };
-
-    //const key = await hkp.lookup(options);
     localStorage.setItem(storPubkey, user.publickey); 
-    user.publickey = key;
   }
-  return checkAccount;   
 }
 
 /* Encrypt */

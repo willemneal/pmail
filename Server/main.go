@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
-
 	bolt "github.com/coreos/bbolt"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -108,6 +106,7 @@ func AddSearchIndex(w http.ResponseWriter, r *http.Request) {
 				_ = b.Put([]byte(elem), []byte(out))
 			} else {
 				var curr_enc_index []string
+				
 				_ = json.Unmarshal([]byte(v), &curr_enc_index)
 				curr_enc_index = append(curr_enc_index, string(email))
 				res_enc_index := removeDuplicatesUnordered(curr_enc_index)
