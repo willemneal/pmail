@@ -188,9 +188,9 @@ var main = async function(){
   });
    
   
-  gmail.observe.before('http_event', function(params) {
-    
-      var query = params['url']['q'];
+  //gmail.observe.before('http_event', function(params) {
+    window.onhashchange = function() { 
+      var query = gmail.get.search_query();      ;
       console.log(query)
       if(query && !query.includes("rfc822msgid")) {
         query = decodeURIComponent(query).toLowerCase();
@@ -201,8 +201,9 @@ var main = async function(){
         query = localStorage["prev_query"];
         setSearchBar(query);
       }
+    }
       
-  });
+  //});
 
 }
 function hello(){
