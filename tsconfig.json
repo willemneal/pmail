@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es6",
+        "noImplicitAny": false,
+        "lib": ["dom", "es2017"],
+        "sourceMap": false,
+        "rootDir": "src",
+        "outDir": "dist/js",
+        "noEmitOnError": true,
+        "typeRoots": [ "node_modules/@types", "node_modules/gmail-js/src/gmail.d.ts" ]
+    }
+}

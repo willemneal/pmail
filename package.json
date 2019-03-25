@@ -1,0 +1,44 @@
+{
+  "name": "pmail",
+  "version": "0.0.1",
+  "description": "Chrome extension for E2E Searchable Encryption in gmail",
+  "main": "index.js",
+  "scripts": {
+    "watch": "npm run build:dev -- --watch",
+    "build": "webpack --config webpack/webpack.prod.js",
+    "build:dev": "webpack --config webpack/webpack.dev.js",
+    "test": "jest --verbose"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/willemneal/pmail.git"
+  },
+  "keywords": [
+    "chrome",
+    "extension",
+    "encryption",
+    "end-to-end-encryption"
+  ],
+  "author": "Willem Wyndham",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/willemneal/pmail/issues"
+  },
+  "homepage": "https://github.com/willemneal/pmail#readme",
+  "dependencies": {
+    "@types/openpgp": "^4.4.3",
+    "gmail-js": "^0.9.1",
+    "jquery": "~3.3.1",
+    "moment": "~2.22.2",
+    "openpgp": "^4.4.10"
+  },
+  "devDependencies": {
+    "@types/chrome": "~0.0.72",
+    "@types/jquery": "~3.3.1",
+    "ts-loader": "~5.0.0",
+    "typescript": "~3.0.3",
+    "webpack": "~4.17.2",
+    "webpack-cli": "~3.1.0",
+    "webpack-merge": "~4.1.4"
+  }
+}

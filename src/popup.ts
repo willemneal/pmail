@@ -6,14 +6,19 @@
 var user;
 const id = "eiolmadckdfaiiidmdeboedfpjepgfji";
 
-var openpgp = window.openpgp;
+import * as openpgp from "openpgp";
+
 var hkp = new openpgp.HKP('https://pgp.mit.edu');
 
 
 var storPrivkey;
 var storPubkey;
 
-async function generateKeys(upload = false){
+function inputById(id: string): HTMLInputElement {
+  return document.getElementById(id) as HTMLInputElement;
+}
+
+async function generateKeys(upload = false): Promise<void> {
   if(user.passphrase != ""){
     var options = {
       userIds: [{email: user.email , name: "pmailtest"}], // multiple user IDs
@@ -28,7 +33,7 @@ async function generateKeys(upload = false){
     }
     if(upload){
       //hkp.upload(user.publickey).then(function() {  });
-      postPublicKey(user.email,user.publickey);
+      // postPublicKey(user.email,user.publickey);
     }
     localStorage.setItem(storPrivkey, user.privatekey);
     localStorage.setItem(storPubkey, user.publickey);
@@ -37,38 +42,38 @@ async function generateKeys(upload = false){
 
 
 setTimeout(() => {
-if(document.getElementById("buttonM") != null){
-  document.getElementById("buttonM").addEventListener("click", passClick);
+if(inputById("buttonM") != null){
+  inputById("buttonM").addEventListener("click", passClick);
 }
-document.getElementById("buttonK").addEventListener("click", importClick);
-document.getElementById("buttonG").addEventListener("click", genClick);
+inputById("buttonK").addEventListener("click", importClick);
+inputById("buttonG").addEventListener("click", genClick);
 }, 0)
 
 
 async function passClick(element){
-  user.passphrase = document.getElementById("passphrase").value;
-  if((await checkAccount()) == true){
-    document.getElementById("acc").innerHTML = "Pmail is Active";
-    user.pmail_active = true;
-  } else {
-    document.getElementById("acc").innerHTML = "Account invalid";
-  }
+  // user.passphrase = inputById("passphrase").value;
+  // if((await checkAccount()) == true){
+  //   inputById("acc").innerHTML = "Pmail is Active";
+  //   user.pmail_active = true;
+  // } else {
+  //   inputById("acc").innerHTML = "Account invalid";
+  // }
 }
 
 async function importClick(element){
-  user.passphrase = document.getElementById("passphrase").value;
-  user.privatekey = document.getElementById("priv").value;
-  user.publickey = document.getElementById("pub").value;
-  if((await checkAccount())){
-    importAccount();
-  }
-
+  // user.passphrase = inputById("passphrase").value;
+  // user.privatekey = inputById("priv").value;
+  // user.publickey = inputById("pub").value;
+  // if((await checkAccount())){
+  //   importAccount();
+  // }
 }
+
 async function genClick(element){
-  user.passphrase = document.getElementById("passphrase").value;
+  user.passphrase = inputById("passphrase").value;
   await generateKeys();
-  document.getElementById("priv").value = user.privatekey;
-  document.getElementById("pub").value = user.publickey;
+  inputById("priv").value = user.privatekey;
+  inputById("pub").value = user.publickey;
 }
 
 // chrome.runtime.onMessage.addListener(function(port) {
@@ -98,15 +103,15 @@ async function parseRequest(request, sender, sendResponse){
   switch(request.type){
     case "user":{
       user = request.user;
-      document.getElementById("priv").value = user.privatekey;
-      document.getElementById("pub").value = user.publickey;
+      inputById("priv").value = user.privatekey;
+      inputById("pub").value = user.publickey;
       storPrivkey = "pmail.privkey-"+user.email;
       storPubkey = "pmail.pubkey-"+user.email;
       if (!localStorage.getItem(storPrivkey)){
         await generateKeys();
       }
+      sendResponse(user)
       break;
-      sendResponse({storPrivkey, storPubkey})
     }
     default:
     console.log("no such type");

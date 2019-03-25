@@ -1,4 +1,6 @@
-var gmail;
+const GmailFactory = require("gmail-js");
+const gmail = new GmailFactory.Gmail() as Gmail;
+import * as openpgp from "openpgp";
 
 
 function refresh(f) {
@@ -244,7 +246,6 @@ QjsoP9qvEB2T0DN4/ljv
   valid : false
 };
 
-var openpgp = window.openpgp;
 var hkp = new openpgp.HKP('https://pgp.mit.edu');
 
 var storPrivkey = "";
@@ -282,8 +283,9 @@ var main = async function(){
       });
   }, 'ptool');
 
-
-
+interface Window {
+  ComposeRef: any
+}
 
 /*  gmail.observe.before('send_message', function(url, body, data, xhr){
     console.log("url:", url, 'body', body, 'email_data', data, 'xhr', xhr);

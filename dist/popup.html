@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="utils/openpgp.min.js"></script>
+    <script src="popup.js"></script>
+</head>
+<body>
+  <h4>Please Enter your Passphrase: </h4>
+  <input type="password" id="passphrase">
+  <input class="switch" id="buttonM" type=button value="Activate Pmail">
+  <input class="switch" id="buttonK" type=button value="Import Keys">
+  <input class="switch" id="buttonG" type=button value="Generate Keys">
+  <p id="acc"></p>
+  <textarea id="priv"
+  rows="10" cols="50"></textarea>
+
+  <textarea id="pub"
+  rows="10" cols="50"></textarea>
+</body>
+</html>
